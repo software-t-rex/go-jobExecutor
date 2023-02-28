@@ -1,13 +1,13 @@
-# Parallel
+# jobExecutor
 
-go module to assist in running jobs in multiple goroutines and print output
+go module to assist in running jobs in multiple goroutines and print their output
 
 ## Sample usage:
 ```go
 import "monospace/parralel"
 
 func main () {
-	executor = parallel.NewExecutor().WithProgressOutput()
+	executor = jobExecutor.NewExecutor().WithProgressOutput()
 	executor.AddJobFns(
 		func() (string, error) {
 			// do stuff here

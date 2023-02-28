@@ -4,7 +4,7 @@ SPDX-FileType: SOURCE
 SPDX-License-Identifier: MIT
 SPDX-FileCopyrightText: 2023 Jonathan Gotti <jgotti@jgotti.org>
 */
-package parallel
+package jobExecutor
 
 import (
 	_ "embed"
@@ -13,6 +13,8 @@ import (
 	"os/exec"
 	"strings"
 )
+
+var outputTemplate *template.Template
 
 type jobEventHandler func(cps JobList, jobId int)
 type jobsEventHandler func(cps JobList)
@@ -49,12 +51,9 @@ func (es JobsError) String() string {
 	return strings.Join(strs, "\n")
 }
 
-var parallelTemplate *template.Template
-
-// go:embed parallel.gtpl
-var dfltTemplateString string
-
 func init() {
+	// go:embed parallel.gtpl
+	var dfltTemplateString string
 	SetTemplateString(dfltTemplateString)
 }
 
@@ -73,7 +72,7 @@ func trim(v string) string {
 // - progressReport: which will receive a jobList
 // - doneReport: which will receive a jobList
 func SetTemplateString(templateString string) {
-	parallelTemplate = template.Must(template.New("parallel").
+	outputTemplate = template.Must(template.New("parallel").
 		Funcs(template.FuncMap{
 			"indent": indent,
 			"trim":   trim,

@@ -4,7 +4,7 @@ SPDX-FileType: SOURCE
 SPDX-License-Identifier: MIT
 SPDX-FileCopyrightText: 2023 Jonathan Gotti <jgotti@jgotti.org>
 */
-package parallel
+package jobExecutor
 
 import (
 	"bytes"
@@ -94,7 +94,7 @@ func tplExec(tplName string, subject interface{}) string {
 		}
 	}()
 	var out bytes.Buffer
-	err := parallelTemplate.ExecuteTemplate(&out, tplName, subject)
+	err := outputTemplate.ExecuteTemplate(&out, tplName, subject)
 	if err != nil {
 		return err.Error()
 	}

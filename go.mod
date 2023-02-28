@@ -1,3 +1,3 @@
-module github.com/malko/monospace/parallel
+module github.com/software-t-rex/go-jobExecutor
 
 go 1.20
