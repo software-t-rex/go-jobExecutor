@@ -9,6 +9,7 @@ package jobExecutor
 import (
 	"runtime"
 	"sync"
+	"time"
 )
 
 // never close this channel, it's only purpose is to limit concurrency.
@@ -46,8 +47,13 @@ func execute(jobs JobList, opts ExecuteOptions) {
 	var wg sync.WaitGroup
 	wg.Add(len(jobs))
 	for i, child := range jobs {
-		jobIndex := i
 		limiterChan <- struct{}{}
+		jobIndex := i
+		job := child
+		job.mutex.Lock()
+		job.StartTime = time.Now()
+		job.status = JobStateRunning
+		job.mutex.Unlock()
 		if opts.onJobStart != nil {
 			opts.onJobStart(jobs, jobIndex)
 		}

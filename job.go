@@ -41,10 +41,6 @@ type job struct {
 
 func (j *job) run(done func()) {
 	defer done()
-	j.mutex.Lock()
-	j.StartTime = time.Now()
-	j.status = j.status | JobStateRunning
-	j.mutex.Unlock()
 	if j.Cmd != nil {
 		res, err := j.Cmd.CombinedOutput()
 		j.mutex.Lock()

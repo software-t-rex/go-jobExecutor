@@ -168,8 +168,10 @@ func (e *JobExecutor) WithProgressOutput() *JobExecutor {
 	e.opts.onJobsStart = func(jobs JobList) {
 		fmt.Print(jobs.execTemplate("startProgressReport"))
 	}
-	esc := fmt.Sprintf("\033[%dA", len(e.jobs)) // clean sequence
-	printProgress := func(jobs JobList, jobId int) { fmt.Print(esc + jobs.execTemplate("progressReport")) }
+	printProgress := func(jobs JobList, jobId int) {
+		esc := fmt.Sprintf("\033[%dA", len(e.jobs)) // clean sequence
+		fmt.Print(esc + jobs.execTemplate("progressReport"))
+	}
 	e.opts.onJobDone = printProgress
 	e.opts.onJobStart = printProgress
 	return e
