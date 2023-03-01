@@ -20,16 +20,20 @@ go module to assist in running jobs in multiple goroutines and print their outpu
 Adding some jobs and executing them
 
 ```go
+package main
+
 import (
 	"errors"
 	"fmt"
 	"math/rand"
-	"time"
-	"github.com/software-t-rex/go-jobExecutor"
 	"os"
+	"strings"
+	"time"
+
+	"github.com/software-t-rex/go-jobExecutor"
 )
 
-func longFunction () (string, error) {
+func longFunction() (string, error) {
 	duration := time.Duration(rand.Intn(5)) * time.Millisecond
 	time.Sleep(duration)
 	if rand.Intn(10) <= 7 { // random failure
@@ -39,23 +43,23 @@ func longFunction () (string, error) {
 }
 
 func longFunction2() (string, error) {
-	res, err := runnable()
+	res, err := longFunction()
 	if err == nil {
 		res = strings.Replace(res, "runnable", "runnable2", -1)
 	}
 	return res, err
 }
 
-func main () {
+func main() {
 	// set max concurrent jobs (not required default to GOMAXPROCS)
 	jobExecutor.SetMaxConcurrentJobs(8)
 	executor := jobExecutor.NewExecutor()
 	// add some "runnable" functions
-	executor.AddJobFns( longFunction, longFunction2)
+	executor.AddJobFns(longFunction, longFunction2)
 	// add a single command
 	executor.AddJobCmd("ls", "-l")
 	// or multiple command at once
-	executor.AddJobsCmd([][]string{
+	executor.AddJobCmds([][]string{
 		{"sleep", "5"},
 		{"sleep", "2"},
 	}...)
@@ -66,7 +70,6 @@ func main () {
 		fmt.Fprintln(os.Stderr, jobErrors)
 	}
 }
-
 ```
 
 Binding some event handlers:
@@ -104,10 +107,11 @@ func main () {
 
 Display state of running jobs:
 ```go
+
 func main() {
-	jobExecutor.SetMaxConcurrentJobs(3)
+	jobExecutor.SetMaxConcurrentJobs(5)
 	executor := jobExecutor.NewExecutor().WithProgressOutput()
-	executor.AddjobCmds( [][]string{
+	executor.AddJobCmds([][]string{
 		{"sleep", "10"},
 		{"sleep", "9"},
 		{"sleep", "8"},
