@@ -11,6 +11,8 @@ import (
 	"sync"
 )
 
+// never close this channel, it's only purpose is to limit concurrency.
+// closing it will make next call to execute cause a panic
 var limiterChan chan struct{}
 
 // set the default number of concurrent jobs to run default to GOMAXPROCS
@@ -26,10 +28,10 @@ func init() {
 }
 
 type ExecuteOptions struct {
-	onJobsStart func(cps JobList)
-	onJobStart  func(cps JobList, jobIndex int)
-	onJobDone   func(cps JobList, jobIndex int)
-	onJobsDone  func(cps JobList)
+	onJobsStart func(jobs JobList)
+	onJobStart  func(jobs JobList, jobIndex int)
+	onJobDone   func(jobs JobList, jobIndex int)
+	onJobsDone  func(jobs JobList)
 }
 
 // effectively launch the child process, call on jobDone
@@ -58,7 +60,7 @@ func execute(jobs JobList, opts ExecuteOptions) {
 		})
 	}
 	wg.Wait()
-	close(limiterChan)
+	// close(limiterChan) <-- we don't close the chan we will use it for further call
 	if opts.onJobsDone != nil {
 		opts.onJobsDone(jobs)
 	}

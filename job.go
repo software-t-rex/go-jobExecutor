@@ -39,50 +39,50 @@ type job struct {
 	mutex     sync.RWMutex
 }
 
-func (cp *job) run(done func()) {
-	defer func() {
-		defer done()
-		cp.mutex.Lock()
-		cp.status = cp.status ^ JobStateRunning | JobStateDone
-		cp.mutex.Unlock()
-	}()
-	cp.mutex.Lock()
-	cp.StartTime = time.Now()
-	cp.status = cp.status | JobStateRunning
-	cp.mutex.Unlock()
-	if cp.Cmd != nil {
-		res, err := cp.Cmd.CombinedOutput()
-		cp.mutex.Lock()
-		cp.Res = string(res)
-		cp.Err = err
-	} else if cp.Fn != nil {
-		res, err := cp.Fn()
-		cp.mutex.Lock()
-		cp.Res = res
-		cp.Err = err
+func (j *job) run(done func()) {
+	defer done()
+	j.mutex.Lock()
+	j.StartTime = time.Now()
+	j.status = j.status | JobStateRunning
+	j.mutex.Unlock()
+	if j.Cmd != nil {
+		res, err := j.Cmd.CombinedOutput()
+		j.mutex.Lock()
+		j.Res = string(res)
+		j.Err = err
+	} else if j.Fn != nil {
+		res, err := j.Fn()
+		j.mutex.Lock()
+		j.Res = res
+		j.Err = err
 	}
-	if cp.Err != nil {
-		cp.status = cp.status | JobStateFailed
+	if j.Err != nil {
+		j.status = JobStateDone | JobStateFailed
 	} else {
-		cp.status = cp.status | JobStateSucceed
+		j.status = JobStateDone | JobStateSucceed
 	}
-	cp.Duration = time.Since(cp.StartTime)
-	cp.mutex.Unlock()
+	j.Duration = time.Since(j.StartTime)
+	j.mutex.Unlock()
 }
 
-func (cp *job) Name() string {
-	if cp != nil && cp.Cmd != nil {
-		return strings.Join(cp.Cmd.Args, " ")
-	} else if cp != nil && cp.Fn != nil {
-		return runtime.FuncForPC(reflect.ValueOf(cp.Fn).Pointer()).Name()
+func (j *job) Name() string {
+	if j != nil && j.Cmd != nil {
+		return strings.Join(j.Cmd.Args, " ")
+	} else if j != nil && j.Fn != nil {
+		return runtime.FuncForPC(reflect.ValueOf(j.Fn).Pointer()).Name()
 	}
 	return "a job"
 }
 
-func (cp *job) IsState(jobState int) bool {
-	cp.mutex.RLock()
-	res := cp.status&jobState != 0
-	cp.mutex.RUnlock()
+func (j *job) IsState(jobState int) bool {
+	j.mutex.RLock()
+	var res bool
+	if jobState == 0 {
+		res = j.status == 0
+	} else {
+		res = j.status&jobState != 0
+	}
+	j.mutex.RUnlock()
 	return res
 }
 
@@ -90,20 +90,21 @@ func (cp *job) IsState(jobState int) bool {
 func tplExec(tplName string, subject interface{}) string {
 	defer func() {
 		if r := recover(); r != nil {
-			fmt.Fprintln(os.Stderr, tplName, " is not defined, see parallel.setTemplate", r)
+			fmt.Fprintln(os.Stderr, tplName, " is not defined, see jobExecutor.setTemplate", r)
 		}
 	}()
 	var out bytes.Buffer
 	err := outputTemplate.ExecuteTemplate(&out, tplName, subject)
 	if err != nil {
-		return err.Error()
+		fmt.Fprintln(os.Stderr, tplName, err.Error())
+		return ""
 	}
 	return out.String()
 }
 
-func (cp *job) execTemplate(tplName string) string {
-	return tplExec(tplName, cp)
+func (j *job) execTemplate(tplName string) string {
+	return tplExec(tplName, j)
 }
-func (cps *JobList) execTemplate(tplName string) string {
-	return tplExec(tplName, cps)
+func (jobs *JobList) execTemplate(tplName string) string {
+	return tplExec(tplName, jobs)
 }
