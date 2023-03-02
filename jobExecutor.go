@@ -163,19 +163,19 @@ func (e *JobExecutor) WithOrderedOutput() *JobExecutor {
 	return e
 }
 
-// will override onJobStarts / onJobStart / onJobDone handlers previsously defined
-// generally you should avoid using these method with other handlers bound to the
-// JobExecutor instance
+// Display a job status report updated each time a job start or end
+// be carefull when dealing with other handler that generate output
+// as it will potentially break progress output
 func (e *JobExecutor) WithProgressOutput() *JobExecutor {
-	e.opts.onJobsStart = func(jobs JobList) {
+	e.opts.onJobsStart = augmentJobsHandler(e.opts.onJobsStart, func(jobs JobList) {
 		fmt.Print(jobs.execTemplate("startProgressReport"))
-	}
+	})
 	printProgress := func(jobs JobList, jobId int) {
 		esc := fmt.Sprintf("\033[%dA", len(e.jobs)) // clean sequence
 		fmt.Print(esc + jobs.execTemplate("progressReport"))
 	}
-	e.opts.onJobDone = printProgress
-	e.opts.onJobStart = printProgress
+	e.opts.onJobDone = augmentJobHandler(e.opts.onJobDone, printProgress)
+	e.opts.onJobStart = augmentJobHandler(e.opts.onJobStart, printProgress)
 	return e
 }
 
