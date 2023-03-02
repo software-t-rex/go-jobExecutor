@@ -26,6 +26,7 @@ func (e *JobError) String() string {
 	return e.OriginalError.Error()
 }
 
+// Map indexes correspond to job index in the queue
 type JobsError map[int]JobError
 
 func (es JobsError) Error() string {

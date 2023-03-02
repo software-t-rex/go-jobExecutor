@@ -38,11 +38,11 @@ func trim(v string) string {
 }
 
 // Template for all outputs related to jobs
-// it must define the following templates:
-// - startSummary: which will receive a JobList
-// - jobStatus: which will receive a single job
-// - progressReport: which will receive a jobList
-// - doneReport: which will receive a jobList
+// It must define the following templates:
+//   - startSummary: which will receive a JobList
+//   - jobStatus: which will receive a single job
+//   - progressReport: which will receive a jobList
+//   - doneReport: which will receive a jobList
 func SetTemplateString(templateString string) {
 	outputTemplate = template.Must(template.New("executor-output").
 		Funcs(template.FuncMap{
@@ -72,7 +72,7 @@ func augmentJobsHandler(fn jobsEventHandler, decoratorFn jobsEventHandler) jobsE
 	}
 }
 
-// instanciate a new JobExecutor
+// Instanciate a new JobExecutor
 func NewExecutor() *JobExecutor {
 	executor := &JobExecutor{
 		opts: &executeOptions{},
@@ -80,18 +80,20 @@ func NewExecutor() *JobExecutor {
 	return executor
 }
 
-// return the total number of jobs in the pool
+// Return the total number of jobs added to the jobExecutor
 func (e *JobExecutor) Len() int {
 	return len(e.jobs)
 }
 
-// Add miltiple job command to execute
+// Add multiple job command to run
 func (e *JobExecutor) AddJobCmds(cmdsAndArgs ...[]string) *JobExecutor {
 	for _, cmdAndArgs := range cmdsAndArgs {
 		e.AddJobCmd(cmdAndArgs[0], cmdAndArgs[1:]...)
 	}
 	return e
 }
+
+// Add a single job command to run
 func (e *JobExecutor) AddJobCmd(cmd string, args ...string) *JobExecutor {
 	e.jobs = append(e.jobs, &job{Cmd: exec.Command(cmd, args...)})
 	return e
@@ -105,31 +107,31 @@ func (e *JobExecutor) AddJobFns(fns ...runnableFn) *JobExecutor {
 	return e
 }
 
-// Add an handler which will be call after a jobs is terminated
+// Add a handler which will be called after a job is terminated
 func (e *JobExecutor) OnJobDone(fn jobEventHandler) *JobExecutor {
 	e.opts.onJobDone = augmentJobHandler(e.opts.onJobDone, fn)
 	return e
 }
 
-// Add an handler which will be call after all jobs are terminated
+// Add a handler which will be called after all jobs are terminated
 func (e *JobExecutor) OnJobsDone(fn jobsEventHandler) *JobExecutor {
 	e.opts.onJobsDone = augmentJobsHandler(e.opts.onJobsDone, fn)
 	return e
 }
 
-// Add an handler which will be call before a jobs is started
+// Add a handler which will be called before a job is started
 func (e *JobExecutor) OnJobStart(fn jobEventHandler) *JobExecutor {
 	e.opts.onJobStart = augmentJobHandler(e.opts.onJobStart, fn)
 	return e
 }
 
-// Add an handler which will be call before any jobs is started
+// Add a handler which will be called before any jobs is started
 func (e *JobExecutor) OnJobsStart(fn jobsEventHandler) *JobExecutor {
 	e.opts.onJobsStart = augmentJobsHandler(e.opts.onJobsStart, fn)
 	return e
 }
 
-// Output a summary of the job that will be run
+// Output a summary of jobs that will be run
 func (e *JobExecutor) WithStartSummary() *JobExecutor {
 	e.opts.onJobsStart = func(jobs JobList) {
 		fmt.Print(jobs.execTemplate("startSummary"))
@@ -153,7 +155,7 @@ func (e *JobExecutor) WithFifoOutput() *JobExecutor {
 	return e
 }
 
-// display doneReport when all jobs are Done
+// Display doneReport when all jobs are Done
 func (e *JobExecutor) WithOrderedOutput() *JobExecutor {
 	e.opts.onJobsDone = func(jobs JobList) {
 		fmt.Print(jobs.execTemplate("doneReport"))
@@ -177,7 +179,7 @@ func (e *JobExecutor) WithProgressOutput() *JobExecutor {
 	return e
 }
 
-// effectively execute jobs and return collected errors as JobsError
+// Effectively execute jobs and return collected errors as JobsError
 func (e *JobExecutor) Execute() JobsError {
 	var errs = make(JobsError, e.Len())
 	e.OnJobDone(func(jobs JobList, jobId int) {

@@ -61,6 +61,7 @@ func (j *job) run(done func()) {
 	j.mutex.Unlock()
 }
 
+// Try to return the command string or the function name (using reflect)
 func (j *job) Name() string {
 	if j != nil && j.Cmd != nil {
 		return strings.Join(j.Cmd.Args, " ")
@@ -70,6 +71,7 @@ func (j *job) Name() string {
 	return "a job"
 }
 
+// Test if a job is in a given JobState
 func (j *job) IsState(jobState int) bool {
 	j.mutex.RLock()
 	var res bool
@@ -82,7 +84,7 @@ func (j *job) IsState(jobState int) bool {
 	return res
 }
 
-// helper method for jobs execTemplate
+// Helper method for jobs execTemplate
 func tplExec(tplName string, subject interface{}) string {
 	defer func() {
 		if r := recover(); r != nil {
