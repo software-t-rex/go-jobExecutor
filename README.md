@@ -27,6 +27,7 @@ import (
 	"fmt"
 	"math/rand"
 	"os"
+	"os/exec"
 	"strings"
 	"time"
 
@@ -57,12 +58,12 @@ func main() {
 	// add some "runnable" functions
 	executor.AddJobFns(longFunction, longFunction2)
 	// add a single command
-	executor.AddJobCmd("ls", "-l")
+	executor.AddJobCmds(exec.Command("ls", "-l"))
 	// or multiple command at once
-	executor.AddJobCmds([][]string{
-		{"sleep", "5"},
-		{"sleep", "2"},
-	}...)
+	executor.AddJobCmds(
+		exec.Command("sleep", "5"),
+		exec.Command("sleep", "2"),
+	)
 
 	// execute them and get errors if any
 	jobErrors := executor.Execute()
@@ -78,7 +79,7 @@ func main () {
 	executor := jobExecutor.NewExecutor()
 
 	// add a simple command
-	executor.AddJobCmd("sleep", "5")
+	executor.AddJobCmds(exec.Command("sleep", "5"))
 
 	// binding some event handlers (can be done anytime before calling Execute)
 	// you can call the same method multiple times to bind more than one handler
@@ -111,18 +112,21 @@ Display state of running jobs:
 func main() {
 	jobExecutor.SetMaxConcurrentJobs(5)
 	executor := jobExecutor.NewExecutor().WithProgressOutput()
-	executor.AddJobCmds([][]string{
-		{"sleep", "10"},
-		{"sleep", "9"},
-		{"sleep", "8"},
-		{"sleep", "7"},
-		{"sleep", "6"},
-		{"sleep", "5"},
-		{"sleep", "4"},
-		{"sleep", "3"},
-		{"sleep", "2"},
-		{"sleep", "1"},
-	}...).Execute()
+	// add a command and set its display name in output templates (there's a AddNamedJobFn too)
+	executor.AddNamedJobCmd("Wait fot 2 seconds", exec.Command("sleep", "2"))
+
+	executor.AddJobCmds(
+		exec.Command("sleep", "10"),
+		exec.Command("sleep", "9"),
+		exec.Command("sleep", "8"),
+		exec.Command("sleep", "7"),
+		exec.Command("sleep", "6"),
+		exec.Command("sleep", "5"),
+		exec.Command("sleep", "4"),
+		exec.Command("sleep", "3"),
+		exec.Command("sleep", "2"),
+		exec.Command("sleep", "1"),
+	).Execute()
 }
 ```
 Other outputs methods:

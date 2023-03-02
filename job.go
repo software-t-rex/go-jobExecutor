@@ -30,14 +30,15 @@ const (
 type runnableFn func() (string, error)
 type JobList []*job
 type job struct {
-	Cmd       *exec.Cmd
-	Fn        runnableFn
-	Res       string
-	Err       error
-	status    int
-	StartTime time.Time
-	Duration  time.Duration
-	mutex     sync.RWMutex
+	Cmd         *exec.Cmd
+	Fn          runnableFn
+	displayName string
+	Res         string
+	Err         error
+	status      int
+	StartTime   time.Time
+	Duration    time.Duration
+	mutex       sync.RWMutex
 }
 
 func (j *job) run(done func()) {
@@ -64,12 +65,16 @@ func (j *job) run(done func()) {
 
 // Try to return the command string or the function name (using reflect)
 func (j *job) Name() string {
-	if j != nil && j.Cmd != nil {
+	if j == nil {
+		return "NotAJob"
+	} else if j.displayName != "" {
+		return j.displayName
+	} else if j.Cmd != nil {
 		return strings.Join(j.Cmd.Args, " ")
-	} else if j != nil && j.Fn != nil {
+	} else if j.Fn != nil {
 		return runtime.FuncForPC(reflect.ValueOf(j.Fn).Pointer()).Name()
 	}
-	return "a job"
+	return "EmptyJob"
 }
 
 // Test if a job is in a given JobState
