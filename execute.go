@@ -28,7 +28,7 @@ func init() {
 	SetMaxConcurrentJobs(runtime.GOMAXPROCS(0))
 }
 
-type ExecuteOptions struct {
+type executeOptions struct {
 	onJobsStart func(jobs JobList)
 	onJobStart  func(jobs JobList, jobIndex int)
 	onJobDone   func(jobs JobList, jobIndex int)
@@ -40,7 +40,7 @@ type ExecuteOptions struct {
 // PrepareCmds, PrepareFns
 // returns the number of errors encountered
 // @todo add cancelation support
-func execute(jobs JobList, opts ExecuteOptions) {
+func execute(jobs JobList, opts executeOptions) {
 	if opts.onJobsStart != nil {
 		opts.onJobsStart(jobs)
 	}

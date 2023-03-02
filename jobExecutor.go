@@ -22,7 +22,7 @@ type jobEventHandler func(jobs JobList, jobId int)
 type jobsEventHandler func(jobs JobList)
 type JobExecutor struct {
 	jobs JobList
-	opts *ExecuteOptions
+	opts *executeOptions
 }
 
 func init() {
@@ -75,7 +75,7 @@ func augmentJobsHandler(fn jobsEventHandler, decoratorFn jobsEventHandler) jobsE
 // instanciate a new JobExecutor
 func NewExecutor() *JobExecutor {
 	executor := &JobExecutor{
-		opts: &ExecuteOptions{},
+		opts: &executeOptions{},
 	}
 	return executor
 }
