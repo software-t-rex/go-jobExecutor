@@ -4,6 +4,7 @@ SPDX-FileType: SOURCE
 SPDX-License-Identifier: MIT
 SPDX-FileCopyrightText: 2023 Jonathan Gotti <jgotti@jgotti.org>
 */
+
 package jobExecutor
 
 import (
@@ -181,13 +182,19 @@ func (e *JobExecutor) WithProgressOutput() *JobExecutor {
 
 // Effectively execute jobs and return collected errors as JobsError
 func (e *JobExecutor) Execute() JobsError {
-	var errs = make(JobsError, e.Len())
+	var errs = make([]error, e.Len())
+	var res = make(JobsError, e.Len())
 	e.OnJobDone(func(jobs JobList, jobId int) {
 		err := jobs[jobId].Err
 		if err != nil {
-			errs[jobId] = NewJobError(jobId, err)
+			errs[jobId] = err
 		}
 	})
 	execute(e.jobs, *e.opts)
-	return errs
+	for jobId, err := range errs {
+		if err != nil {
+			res[jobId] = err
+		}
+	}
+	return res
 }
