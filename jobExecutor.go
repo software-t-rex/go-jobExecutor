@@ -10,8 +10,10 @@ package jobExecutor
 import (
 	_ "embed"
 	"fmt"
+	"math"
 	"os/exec"
 	"strings"
+	"sync/atomic"
 	"text/template"
 )
 
@@ -54,6 +56,8 @@ func SetTemplateString(templateString string) {
 	)
 }
 
+/***** internal helpers methods ******/
+
 func augmentJobHandler(fn jobEventHandler, decoratorFn jobEventHandler) jobEventHandler {
 	if fn == nil {
 		return decoratorFn
@@ -72,6 +76,28 @@ func augmentJobsHandler(fn jobsEventHandler, decoratorFn jobsEventHandler) jobsE
 		decoratorFn(jobs)
 	}
 }
+
+func getPrintProgress(total int, length int, colorEscSeq string) func(done int32) {
+	resetSeq := ""
+	if colorEscSeq != "" {
+		resetSeq = "\033[0m"
+	}
+	return func(done int32) {
+		// calc percent done
+		doneTotal := float64(float32(done) / float32(total) * float32(length) * 8)
+		doneStartLength := int(doneTotal / 8)
+		rest := math.Mod(doneTotal, 8)
+		barStr := strings.Repeat("█", doneStartLength)
+		if rest > 0 {
+			barStr += string(rune(9616-rest)) + strings.Repeat(" ", length-1-doneStartLength)
+		} else {
+			barStr += strings.Repeat(" ", length-doneStartLength)
+		}
+		fmt.Printf(" %s%s%s %d/%d\r", colorEscSeq, barStr, resetSeq, done, total)
+	}
+}
+
+/***** public jobExecutor methods ******/
 
 // Instanciate a new JobExecutor
 func NewExecutor() *JobExecutor {
@@ -173,7 +199,7 @@ func (e *JobExecutor) WithOrderedOutput() *JobExecutor {
 // Display a job status report updated each time a job start or end
 // be carefull when dealing with other handler that generate output
 // as it will potentially break progress output
-func (e *JobExecutor) WithProgressOutput() *JobExecutor {
+func (e *JobExecutor) WithOngoingStatusOutput() *JobExecutor {
 	e.opts.onJobsStart = augmentJobsHandler(e.opts.onJobsStart, func(jobs JobList) {
 		fmt.Print(jobs.execTemplate("startProgressReport"))
 	})
@@ -183,6 +209,30 @@ func (e *JobExecutor) WithProgressOutput() *JobExecutor {
 	}
 	e.opts.onJobDone = augmentJobHandler(e.opts.onJobDone, printProgress)
 	e.opts.onJobStart = augmentJobHandler(e.opts.onJobStart, printProgress)
+	return e
+}
+
+// - length is the number of characters used to print the progress bar
+// - keepOnDone determines if the progress bar should be kept on the screen when done or not
+// - colorEscSeq is an ANSII terminal escape sequence ie: "\033[32m"
+func (e *JobExecutor) WithProgressBarOutput(length int, keepOnDone bool, colorEscSeq string) *JobExecutor {
+	var doneCount atomic.Int32
+	var printProgress func(done int32)
+	e.OnJobsStart(func(jobs JobList) {
+		printProgress = getPrintProgress(e.Len(), length, colorEscSeq)
+	})
+	e.OnJobDone(func(jobs JobList, jobId int) {
+		doneCount.Add(1)
+		printProgress(doneCount.Load())
+	})
+	e.OnJobStart(func(jobs JobList, jobId int) { printProgress(doneCount.Load()) })
+	e.OnJobsDone(func(jobs JobList) {
+		if keepOnDone {
+			fmt.Print("\n") // go to next line
+		} else {
+			fmt.Print("\033[2K") // clear line
+		}
+	})
 	return e
 }
 

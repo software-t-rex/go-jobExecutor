@@ -111,7 +111,7 @@ Display state of running jobs:
 
 func main() {
 	jobExecutor.SetMaxConcurrentJobs(5)
-	executor := jobExecutor.NewExecutor().WithProgressOutput()
+	executor := jobExecutor.NewExecutor().WithOngoingStatusOutput()
 	// add a command and set its display name in output templates (there's a AddNamedJobFn too)
 	executor.AddNamedJobCmd("Wait fot 2 seconds", exec.Command("sleep", "2"))
 
