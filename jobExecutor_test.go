@@ -50,8 +50,8 @@ func TestJobExecutorEvents(t *testing.T) {
 			startsCalled++
 		}).
 		OnJobStart(func(jobs JobList, jobId int) {
-			if !jobs[jobId].IsState(JobStatePending) {
-				t.Fatal("onJobStart called with job that is not in pending state")
+			if !jobs[jobId].IsState(JobStateRunning) {
+				t.Fatal("onJobStart called with job that is not in running state")
 			}
 			startCalled++
 		}).
