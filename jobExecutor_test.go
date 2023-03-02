@@ -10,6 +10,8 @@ package jobExecutor
 import (
 	_ "embed"
 	"errors"
+	"os/exec"
+	"sync"
 	"testing"
 )
 
@@ -19,13 +21,13 @@ var TestRunnableFailFn = func() (string, error) { return "", errors.New("test er
 // check AddJobCmd, AddJobCmds, AddJobFns and Len
 func TestJobExecutorJobs(t *testing.T) {
 	executor := NewExecutor()
-	executor.AddJobCmd("ls", "-l")
+	executor.AddJobCmds(exec.Command("ls", "-l"))
 	if executor.Len() != 1 {
 		t.Fatal("jobExecutor.AddJobCmd doesn't register command properly")
 	}
-	cmds := [][]string{
-		{"cd", "../"},
-		{"ls", "-l", "-a"},
+	cmds := []*exec.Cmd{
+		exec.Command("cd", "../"),
+		exec.Command("ls", "-l", "-a"),
 	}
 	executor.AddJobCmds(cmds...)
 	if executor.Len() != 3 {
@@ -42,6 +44,7 @@ func TestJobExecutorEvents(t *testing.T) {
 	var startCalled int
 	var doneCalled int
 	var donesCalled int
+	mutex := &sync.Mutex{}
 	executor := NewExecutor()
 	errs := executor.AddJobFns(TestRunnableSuccessFn, TestRunnableFailFn).
 		OnJobsStart(func(jobs JobList) {
@@ -54,7 +57,9 @@ func TestJobExecutorEvents(t *testing.T) {
 			if !jobs[jobId].IsState(JobStateRunning) {
 				t.Fatal("onJobStart called with job that is not in running state")
 			}
+			mutex.Lock()
 			startCalled++
+			mutex.Unlock()
 		}).
 		OnJobDone(func(jobs JobList, jobId int) {
 			if !jobs[jobId].IsState(JobStateDone) {
@@ -66,7 +71,9 @@ func TestJobExecutorEvents(t *testing.T) {
 			if jobId == 1 && !jobs[jobId].IsState(JobStateDone) {
 				t.Fatal("onJobDone job is not properly marked as failed")
 			}
+			mutex.Lock()
 			doneCalled++
+			mutex.Unlock()
 		}).
 		OnJobsDone(func(jobs JobList) {
 			donesCalled++

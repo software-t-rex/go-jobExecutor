@@ -10,9 +10,9 @@ package jobExecutor
 import (
 	_ "embed"
 	"fmt"
-	"html/template"
 	"os/exec"
 	"strings"
+	"text/template"
 )
 
 //go:embed output.gtpl
@@ -86,17 +86,11 @@ func (e *JobExecutor) Len() int {
 	return len(e.jobs)
 }
 
-// Add multiple job command to run
-func (e *JobExecutor) AddJobCmds(cmdsAndArgs ...[]string) *JobExecutor {
-	for _, cmdAndArgs := range cmdsAndArgs {
-		e.AddJobCmd(cmdAndArgs[0], cmdAndArgs[1:]...)
+// Add multiple job commands to run
+func (e *JobExecutor) AddJobCmds(cmds ...*exec.Cmd) *JobExecutor {
+	for _, cmd := range cmds {
+		e.jobs = append(e.jobs, &job{Cmd: cmd})
 	}
-	return e
-}
-
-// Add a single job command to run
-func (e *JobExecutor) AddJobCmd(cmd string, args ...string) *JobExecutor {
-	e.jobs = append(e.jobs, &job{Cmd: exec.Command(cmd, args...)})
 	return e
 }
 
@@ -105,6 +99,18 @@ func (e *JobExecutor) AddJobFns(fns ...runnableFn) *JobExecutor {
 	for _, fn := range fns {
 		e.jobs = append(e.jobs, &job{Fn: fn})
 	}
+	return e
+}
+
+// Add a job function and set its output display name
+func (e *JobExecutor) AddNamedJobFn(name string, fn runnableFn) *JobExecutor {
+	e.jobs = append(e.jobs, &job{displayName: name, Fn: fn})
+	return e
+}
+
+// Add a job command and set its output display name
+func (e *JobExecutor) AddNamedJobCmd(name string, cmd *exec.Cmd) *JobExecutor {
+	e.jobs = append(e.jobs, &job{displayName: name, Cmd: cmd})
 	return e
 }
 
