@@ -1,3 +1,3 @@
-module github.com/software-t-rex/go-jobExecutor
+module github.com/software-t-rex/go-jobExecutor/v2
 
 go 1.20
