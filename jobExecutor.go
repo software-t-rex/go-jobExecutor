@@ -175,33 +175,33 @@ func (e *JobExecutor) OnJobsStart(fn jobsEventHandler) *JobExecutor {
 
 // Output a summary of jobs that will be run
 func (e *JobExecutor) WithStartSummary() *JobExecutor {
-	e.opts.onJobsStart = func(jobs JobList) {
-		fmt.Print(jobs.execTemplate("startSummary"))
-	}
+	e.OnJobsStart(func(jobs JobList) {
+		fmt.Print(jobs.execTemplate(e.getTemplate("startSummary")))
+	})
 	return e
 }
 
 // Output a line to say a job is starting
 func (e *JobExecutor) WithStartOutput() *JobExecutor {
-	e.opts.onJobStart = func(jobs JobList, jobId int) {
-		fmt.Print("Starting " + jobs[jobId].execTemplate("jobStatusLine"))
-	}
+	e.OnJobStart(func(jobs JobList, jobId int) {
+		fmt.Print("Starting " + jobs[jobId].execTemplate(e.getTemplate("jobStatusLine")))
+	})
 	return e
 }
 
 // Display full jobStatus as they arrive
 func (e *JobExecutor) WithFifoOutput() *JobExecutor {
-	e.opts.onJobDone = func(jobs JobList, jobId int) {
-		fmt.Print(jobs[jobId].execTemplate("jobStatusFull"))
-	}
+	e.OnJobDone(func(jobs JobList, jobId int) {
+		fmt.Print(jobs[jobId].execTemplate(e.getTemplate("jobStatusFull")))
+	})
 	return e
 }
 
 // Display doneReport when all jobs are Done
 func (e *JobExecutor) WithOrderedOutput() *JobExecutor {
-	e.opts.onJobsDone = func(jobs JobList) {
-		fmt.Print(jobs.execTemplate("doneReport"))
-	}
+	e.OnJobsDone(func(jobs JobList) {
+		fmt.Print(jobs.execTemplate(e.getTemplate("doneReport")))
+	})
 	return e
 }
 
@@ -209,15 +209,15 @@ func (e *JobExecutor) WithOrderedOutput() *JobExecutor {
 // be carefull when dealing with other handler that generate output
 // as it will potentially break progress output
 func (e *JobExecutor) WithOngoingStatusOutput() *JobExecutor {
-	e.opts.onJobsStart = augmentJobsHandler(e.opts.onJobsStart, func(jobs JobList) {
-		fmt.Print(jobs.execTemplate("startProgressReport"))
+	e.OnJobsStart(func(jobs JobList) {
+		fmt.Print(jobs.execTemplate(e.getTemplate("startProgressReport")))
 	})
 	printProgress := func(jobs JobList, jobId int) {
 		esc := fmt.Sprintf("\033[%dA", len(e.jobs)) // clean sequence
-		fmt.Print(esc + jobs.execTemplate("progressReport"))
+		fmt.Print(esc + jobs.execTemplate(e.getTemplate("progressReport")))
 	}
-	e.opts.onJobDone = augmentJobHandler(e.opts.onJobDone, printProgress)
-	e.opts.onJobStart = augmentJobHandler(e.opts.onJobStart, printProgress)
+	e.OnJobDone(printProgress)
+	e.OnJobStart(printProgress)
 	return e
 }
 
