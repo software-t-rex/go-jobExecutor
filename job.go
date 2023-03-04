@@ -16,6 +16,7 @@ import (
 	"runtime"
 	"strings"
 	"sync"
+	"text/template"
 	"time"
 )
 
@@ -91,24 +92,24 @@ func (j *job) IsState(jobState int) bool {
 }
 
 // Helper method for jobs execTemplate
-func tplExec(tplName string, subject interface{}) string {
+func tplExec(tpl *template.Template, subject interface{}) string {
 	defer func() {
 		if r := recover(); r != nil {
-			fmt.Fprintln(os.Stderr, tplName, " is not defined, see jobExecutor.setTemplate", r)
+			fmt.Fprintln(os.Stderr, "template is not defined, see jobExecutor.setTemplate", r)
 		}
 	}()
 	var out bytes.Buffer
-	err := outputTemplate.ExecuteTemplate(&out, tplName, subject)
+	err := tpl.Execute(&out, subject)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, tplName, err.Error())
+		fmt.Fprintln(os.Stderr, tpl, err.Error())
 		return ""
 	}
 	return out.String()
 }
 
-func (j *job) execTemplate(tplName string) string {
-	return tplExec(tplName, j)
+func (j *job) execTemplate(tpl *template.Template) string {
+	return tplExec(tpl, j)
 }
-func (jobs *JobList) execTemplate(tplName string) string {
-	return tplExec(tplName, jobs)
+func (jobs *JobList) execTemplate(tpl *template.Template) string {
+	return tplExec(tpl, jobs)
 }

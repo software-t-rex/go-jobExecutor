@@ -105,13 +105,13 @@ func Test_job_Templates(t *testing.T) {
 	testJobList := JobList{testjob}
 
 	for _, tplName := range jobTemplates {
-		out := testjob.execTemplate(tplName)
+		out := testjob.execTemplate(outputTemplate.Lookup(tplName))
 		if out == "" || out == "undefined" {
 			t.Fatalf(`Empty job template %s`, tplName)
 		}
 	}
 	for _, tplName := range jobListTemplates {
-		out := testJobList.execTemplate(tplName)
+		out := testJobList.execTemplate(outputTemplate.Lookup(tplName))
 		if out == "" || out == "undefined" {
 			t.Fatalf(`Empty JobList template %s`, tplName)
 		}

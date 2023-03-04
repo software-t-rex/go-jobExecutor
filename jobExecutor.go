@@ -24,8 +24,9 @@ var outputTemplate *template.Template
 type jobEventHandler func(jobs JobList, jobId int)
 type jobsEventHandler func(jobs JobList)
 type JobExecutor struct {
-	jobs JobList
-	opts *executeOptions
+	jobs     JobList
+	opts     *executeOptions
+	template *template.Template
 }
 
 func init() {
@@ -103,6 +104,14 @@ func getPrintProgress(total int, length int, colorEscSeq string) func(done int32
 func NewExecutor() *JobExecutor {
 	executor := &JobExecutor{
 		opts: &executeOptions{},
+	}
+	return executor
+}
+
+func NewExecutorWithTemplate(template *template.Template) *JobExecutor {
+	executor := &JobExecutor{
+		opts:     &executeOptions{},
+		template: template,
 	}
 	return executor
 }
@@ -253,4 +262,16 @@ func (e *JobExecutor) Execute() JobsError {
 		}
 	}
 	return res
+}
+
+// return defined template associated with this executor or default template if none
+func (e *JobExecutor) getTemplate(name string) *template.Template {
+	var tpl *template.Template
+	if e.template != nil {
+		tpl = e.template.Lookup(name)
+	}
+	if tpl == nil {
+		tpl = outputTemplate.Lookup(name)
+	}
+	return tpl
 }
