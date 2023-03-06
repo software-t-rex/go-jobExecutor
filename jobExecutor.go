@@ -102,10 +102,7 @@ func getPrintProgress(total int, length int, colorEscSeq string) func(done int32
 
 // Instanciate a new JobExecutor
 func NewExecutor() *JobExecutor {
-	executor := &JobExecutor{
-		opts: &executeOptions{},
-	}
-	return executor
+	return NewExecutorWithTemplate(outputTemplate)
 }
 
 func NewExecutorWithTemplate(template *template.Template) *JobExecutor {

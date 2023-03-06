@@ -17,7 +17,7 @@ go module to assist in running jobs in multiple goroutines and print their outpu
 
 ## Usage:
 
-Adding some jobs and executing them
+### Adding some jobs and executing them
 
 ```go
 package main
@@ -73,7 +73,7 @@ func main() {
 }
 ```
 
-Binding some event handlers:
+### Binding some event handlers:
 ```go
 func main () {
 	executor := jobExecutor.NewExecutor()
@@ -106,14 +106,14 @@ func main () {
 }
 ```
 
-Display state of running jobs:
+### Display state of running jobs:
 ```go
 
 func main() {
 	jobExecutor.SetMaxConcurrentJobs(5)
 	executor := jobExecutor.NewExecutor().WithOngoingStatusOutput()
 	// add a command and set its display name in output templates (there's a AddNamedJobFn too)
-	executor.AddNamedJobCmd("Wait fot 2 seconds", exec.Command("sleep", "2"))
+	executor.AddNamedJobCmd("Wait for 2 seconds", exec.Command("sleep", "2"))
 
 	executor.AddJobCmds(
 		exec.Command("sleep", "10"),
@@ -129,12 +129,14 @@ func main() {
 	).Execute()
 }
 ```
-Other outputs methods:
+### Other outputs methods:
+- WithProgressBarOutput: Display a progress bar while status are running
 - WithOrderedOutput: output ordered res and errors at the end
 - WithFifoOutput: output res and errors as they arrive
 - WithStartOutput: output a line when launching a job
 - WithStartSummary: output a summary of jobs to do
 
+### Change output formats
 All output methods use a go template which you can override by calling the method
 ```go
 jobExecutor.SetTemplateString(myTemplateString)
@@ -147,3 +149,8 @@ the template string must contains following templates definition:
 - startProgressReport
 - progressReport
 You can look at output.gtpl file for an example
+
+Alternatively, you can pass a template bound to a specific executor like this:
+```go
+executor := jobExecutor.NewExecutorWithTemplate(myTemplate)
+```
