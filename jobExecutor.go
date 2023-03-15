@@ -20,6 +20,7 @@ import (
 //go:embed output.gtpl
 var dfltTemplateString string
 var outputTemplate *template.Template
+var ErrCyclicDependencyDetected = fmt.Errorf("cyclic dependencies detected")
 
 type jobEventHandler func(jobs JobList, jobId int)
 type jobsEventHandler func(jobs JobList)
@@ -324,6 +325,80 @@ func (e *JobExecutor) Execute() JobsError {
 		}
 	})
 	execute(e.jobs, *e.opts)
+	for jobId, err := range errs {
+		if err != nil {
+			res[jobId] = err
+		}
+	}
+	return res
+}
+
+// Register "from" job as dependent on "to" job
+func (e *JobExecutor) AddJobDependency(from Job, to Job) *JobExecutor {
+	from.job.DependsOn = append(from.job.DependsOn, to.job)
+	return e //, nil
+}
+
+// Check that the jobs registered in the executor don't make a cyclic dependency
+// (use Kahn's topological sort algorithm)
+func (e *JobExecutor) IsAcyclic() bool {
+	length := e.Len()
+	if length < 1 {
+		return true
+	}
+	// init an adjacencyList to store edges between jobs
+	adjacencyList := make(map[int][]int, length)
+	// Count dependent on each job
+	dependentCount := make(map[int]int, length)
+	for _, job := range e.jobs {
+		for _, to := range job.DependsOn {
+			adjacencyList[job.id] = append(adjacencyList[job.id], to.id)
+			dependentCount[to.id]++
+		}
+	}
+
+	// Find all start jobs
+	var queue []int
+	for _, job := range e.jobs {
+		if dependentCount[job.id] == 0 {
+			queue = append(queue, job.id)
+		}
+	}
+
+	index := 0
+	for len(queue) > 0 {
+		at := queue[0]
+		queue = queue[1:]
+		index++
+		for _, to := range e.jobs[at].DependsOn {
+			// for _, to := range adjacencyList[at] {
+			dependentCount[to.id]--
+			if dependentCount[to.id] == 0 {
+				queue = append(queue, to.id)
+			}
+		}
+	}
+
+	return index == length
+}
+
+func (e *JobExecutor) DagExecute() JobsError {
+	var errs = make([]error, e.Len())
+	var res = make(JobsError, e.Len())
+	e.OnJobDone(func(jobs JobList, jobId int) {
+		err := jobs[jobId].Err
+		if err != nil {
+			errs[jobId] = err
+		}
+	})
+	if !e.IsAcyclic() {
+		for jobId := range e.jobs {
+			res[jobId] = ErrCyclicDependencyDetected
+		}
+		return res
+	}
+	// no cyclic dependency detected call execute
+	dagExecute(e.jobs, *e.opts)
 	for jobId, err := range errs {
 		if err != nil {
 			res[jobId] = err

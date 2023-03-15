@@ -57,7 +57,7 @@ func execute(jobs JobList, opts executeOptions) {
 		if opts.onJobStart != nil {
 			opts.onJobStart(jobs, jobIndex)
 		}
-		go child.run(func() {
+		go job.run(func() {
 			defer func() { <-limiterChan }()
 			defer wg.Done()
 			if opts.onJobDone != nil {
@@ -70,4 +70,79 @@ func execute(jobs JobList, opts executeOptions) {
 	if opts.onJobsDone != nil {
 		opts.onJobsDone(jobs)
 	}
+}
+
+// cyclic dependency check MUST be done before calling this function if not it may wait forever
+func dagExecute(jobs JobList, opts executeOptions) error {
+
+	if opts.onJobsStart != nil {
+		opts.onJobsStart(jobs)
+	}
+	length := len(jobs)
+	// create a list of edges
+	adjacencyList := make(map[int][]int, length)
+	// count dependent
+	dependentCount := make(map[int]int, length)
+	for _, job := range jobs {
+		for _, to := range job.DependsOn {
+			adjacencyList[to.id] = append(adjacencyList[to.id], job.id)
+			dependentCount[job.id]++
+		}
+	}
+	// init a queue with starter jobs
+	var jobQueue []int
+	for id := range jobs {
+		if dependentCount[id] == 0 {
+			jobQueue = append(jobQueue, id)
+		}
+	}
+
+	var wg sync.WaitGroup
+	wg.Add(length)
+	doneChan := make(chan int)
+	defer func() { close(doneChan) }()
+	doneJob := 0
+	for doneJob < len(jobs) { // until all jobs are done
+		for len(jobQueue) > 0 { // while the queue is not empty
+			job := jobs[jobQueue[0]] // unqueue job
+			jobQueue = jobQueue[1:]
+			limiterChan <- struct{}{} // Wait if we are over the concurrency limit
+			// run job
+			job.mutex.Lock()
+			job.StartTime = time.Now()
+			job.status = JobStateRunning
+			job.mutex.Unlock()
+			if opts.onJobStart != nil {
+				opts.onJobStart(jobs, job.id)
+			}
+			go job.run(func() {
+				defer func() {
+					<-limiterChan
+					doneChan <- job.id
+				}()
+				defer wg.Done()
+				if opts.onJobDone != nil {
+					opts.onJobDone(jobs, job.id)
+				}
+			})
+		}
+
+		for doneId := range doneChan {
+			doneJob++
+			for _, to := range adjacencyList[doneId] {
+				dependentCount[to]--
+				if dependentCount[to] == 0 {
+					jobQueue = append(jobQueue, to)
+				}
+			}
+			break
+		}
+	}
+
+	wg.Wait()
+	// close(limiterChan) <-- we don't close the chan we will use it for further call
+	if opts.onJobsDone != nil {
+		opts.onJobsDone(jobs)
+	}
+	return nil
 }
