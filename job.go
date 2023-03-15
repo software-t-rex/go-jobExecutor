@@ -28,9 +28,13 @@ const (
 	JobStateFailed  = 8
 )
 
+var ErrRequiredJobFailed = fmt.Errorf("required job failed")
+var ErrUndefinedTemplate = fmt.Errorf("template is not defined, see jobExecutor.setTemplate")
+
 type runnableFn func() (string, error)
 type JobList []*job
 type job struct {
+	id          int
 	Cmd         *exec.Cmd
 	Fn          runnableFn
 	displayName string
@@ -39,11 +43,81 @@ type job struct {
 	status      int
 	StartTime   time.Time
 	Duration    time.Duration
+	DependsOn   []*job
 	mutex       sync.RWMutex
 }
 
+// ************************** public Job API **************************//
+type Job struct {
+	job *job
+}
+
+type NamedJob struct {
+	Name string
+	// must be *execCmd or runnableFn
+	Job interface{}
+}
+
+// return internal job Id, correspond to insertion order in an executor
+func (j *Job) Id() int { return j.job.id }
+
+// check the given job is of *exec.Cmd type
+func (j *Job) IsCmdJob() bool { return j.job.Cmd != nil }
+
+// check the given job is of func() (string, error) type
+func (j *Job) IsFnJob() bool { return j.job.Fn != nil }
+
+// allow to check the status of the job (concurrency safe)
+//
+//	job.IsState(jobExecutor.JobStateSucceed)
+//	job.IsState(jobExecutor.JobStateRunning)
+func (j *Job) IsState(state int) bool { return j.job.IsState(state) }
+
+// return the assigned name of a job or a computed one
+func (j *Job) Name() string { return j.job.Name() }
+
+// return the combinedOutput of job (only after execution)
+// this is concurrency safe
+func (j *Job) CombinedOutput() string {
+	j.job.mutex.RLock()
+	res := j.job.Res
+	j.job.mutex.RUnlock()
+	return res
+}
+
+// return the error returned by a job if any (only after execution)
+// this is concurrency safe
+func (j *Job) Err() error {
+	j.job.mutex.RLock()
+	err := j.job.Err
+	j.job.mutex.RUnlock()
+	return err
+}
+
+// ************************** Internam Job API **************************//
+
 func (j *job) run(done func()) {
 	defer done()
+	j.mutex.RLock()
+	dependsOn := j.DependsOn
+	j.mutex.RUnlock()
+	if len(dependsOn) > 0 {
+		hasDepErr := false
+		for _, job := range dependsOn {
+			if !job.IsState(JobStateSucceed) {
+				hasDepErr = true
+				break
+			}
+		}
+		if hasDepErr {
+			j.mutex.Lock()
+			j.Err = ErrRequiredJobFailed
+			j.status = JobStateDone | JobStateFailed
+			j.Duration = time.Since(j.StartTime)
+			j.mutex.Unlock()
+			return
+		}
+	}
 	if j.Cmd != nil {
 		res, err := j.Cmd.CombinedOutput()
 		j.mutex.Lock()
@@ -95,7 +169,7 @@ func (j *job) IsState(jobState int) bool {
 func tplExec(tpl *template.Template, subject interface{}) string {
 	defer func() {
 		if r := recover(); r != nil {
-			fmt.Fprintln(os.Stderr, "template is not defined, see jobExecutor.setTemplate", r)
+			fmt.Fprintln(os.Stderr, ErrUndefinedTemplate.Error(), r)
 		}
 	}()
 	var out bytes.Buffer
