@@ -29,6 +29,7 @@ type JobExecutor struct {
 	template *template.Template
 }
 
+// ######### template related methods ######### //
 func init() {
 	SetTemplateString(dfltTemplateString)
 }
@@ -57,7 +58,7 @@ func SetTemplateString(templateString string) {
 	)
 }
 
-/***** internal helpers methods ******/
+// ######### internal helpers methods ######### //
 
 func augmentJobHandler(fn jobEventHandler, decoratorFn jobEventHandler) jobEventHandler {
 	if fn == nil {
@@ -98,7 +99,19 @@ func getPrintProgress(total int, length int, colorEscSeq string) func(done int32
 	}
 }
 
-/***** public jobExecutor methods ******/
+// return defined template associated with this executor or default template if none
+func getExecutorTemplate(e *JobExecutor, name string) *template.Template {
+	var tpl *template.Template
+	if e.template != nil {
+		tpl = e.template.Lookup(name)
+	}
+	if tpl == nil {
+		tpl = outputTemplate.Lookup(name)
+	}
+	return tpl
+}
+
+// ######### public jobExecutor methods ######### //
 
 // Instanciate a new JobExecutor
 func NewExecutor() *JobExecutor {
@@ -118,33 +131,87 @@ func (e *JobExecutor) Len() int {
 	return len(e.jobs)
 }
 
-// Add multiple job commands to run
+// ************************** Job Registration **************************//
+
+// Add any kind of supported job to the jobExecutor pool and return a Job
+// supported jobs are:
+// - an *exec.Cmd
+// - a runnableFn (func() (string, error))
+// - a NamedJob
+// any unsupported job type will panic
+// some examples:
+//
+//	// add an *exec.Cmd
+//	cmd := exec.Command("mycommand")
+//	job, err := executor.AddJob(cmd)
+//	// add runnableFn
+//	job, err := executor.AddJob(func() (string, error) {... })
+//	// add named *exec.Cmd
+//	job, err := executor.AddJob(&jobExecutor.NamedJob{"myjob", cmd))
+//	// add named runnableFn
+//	job, err := executor.AddJob(&jobExecutor.NamedJob{"myjob", func() (string, error) {... }})
+//
+// the returned Job can be used to declare dependencies between Jobs
+func (e *JobExecutor) AddJob(j interface{}) Job {
+	var res Job
+	switch typedJob := j.(type) {
+	case NamedJob:
+		res = e.AddJob(typedJob.Job)
+		res.job.displayName = typedJob.Name
+		return res
+	case *exec.Cmd:
+		res = Job{job: &job{id: e.Len(), Cmd: typedJob}}
+	case func() (string, error):
+		res = Job{job: &job{id: e.Len(), Fn: typedJob}}
+	default:
+		panic("unsupported job type")
+	}
+	e.jobs = append(e.jobs, res.job)
+	return res
+}
+
+// same as AddJob but for multiple jobs at once it will panic on invalid job, and return a slice of added Jobs
+func (e *JobExecutor) AddJobs(jobs ...interface{}) []Job {
+	res := make([]Job, len(jobs))
+	for i, j := range jobs {
+		res[i] = e.AddJob(j)
+	}
+	return res
+}
+
+// Add multiple job commands to run.
+// This method can be chained.
 func (e *JobExecutor) AddJobCmds(cmds ...*exec.Cmd) *JobExecutor {
 	for _, cmd := range cmds {
-		e.jobs = append(e.jobs, &job{Cmd: cmd})
+		e.jobs = append(e.jobs, &job{id: e.Len(), Cmd: cmd})
 	}
 	return e
 }
 
-// Add one or more job function to run (func() (string, error))
+// Add one or more job function to run (func() (string, error)).
+// This method can be chained.
 func (e *JobExecutor) AddJobFns(fns ...runnableFn) *JobExecutor {
 	for _, fn := range fns {
-		e.jobs = append(e.jobs, &job{Fn: fn})
+		e.jobs = append(e.jobs, &job{id: e.Len(), Fn: fn})
 	}
 	return e
 }
 
-// Add a job function and set its output display name
+// Add a job function and set its output display name.
+// This method can be chained.
 func (e *JobExecutor) AddNamedJobFn(name string, fn runnableFn) *JobExecutor {
-	e.jobs = append(e.jobs, &job{displayName: name, Fn: fn})
+	e.jobs = append(e.jobs, &job{id: e.Len(), displayName: name, Fn: fn})
 	return e
 }
 
-// Add a job command and set its output display name
+// Add a job command and set its output display name.
+// This method can be chained.
 func (e *JobExecutor) AddNamedJobCmd(name string, cmd *exec.Cmd) *JobExecutor {
-	e.jobs = append(e.jobs, &job{displayName: name, Cmd: cmd})
+	e.jobs = append(e.jobs, &job{id: e.Len(), displayName: name, Cmd: cmd})
 	return e
 }
+
+//************************** Events **************************//
 
 // Add a handler which will be called after a job is terminated
 func (e *JobExecutor) OnJobDone(fn jobEventHandler) *JobExecutor {
@@ -170,10 +237,12 @@ func (e *JobExecutor) OnJobsStart(fn jobsEventHandler) *JobExecutor {
 	return e
 }
 
+//************************** Outputs  **************************//
+
 // Output a summary of jobs that will be run
 func (e *JobExecutor) WithStartSummary() *JobExecutor {
 	e.OnJobsStart(func(jobs JobList) {
-		fmt.Print(jobs.execTemplate(e.getTemplate("startSummary")))
+		fmt.Print(jobs.execTemplate(getExecutorTemplate(e, "startSummary")))
 	})
 	return e
 }
@@ -181,7 +250,7 @@ func (e *JobExecutor) WithStartSummary() *JobExecutor {
 // Output a line to say a job is starting
 func (e *JobExecutor) WithStartOutput() *JobExecutor {
 	e.OnJobStart(func(jobs JobList, jobId int) {
-		fmt.Print("Starting " + jobs[jobId].execTemplate(e.getTemplate("jobStatusLine")))
+		fmt.Print("Starting " + jobs[jobId].execTemplate(getExecutorTemplate(e, "jobStatusLine")))
 	})
 	return e
 }
@@ -189,7 +258,7 @@ func (e *JobExecutor) WithStartOutput() *JobExecutor {
 // Display full jobStatus as they arrive
 func (e *JobExecutor) WithFifoOutput() *JobExecutor {
 	e.OnJobDone(func(jobs JobList, jobId int) {
-		fmt.Print(jobs[jobId].execTemplate(e.getTemplate("jobStatusFull")))
+		fmt.Print(jobs[jobId].execTemplate(getExecutorTemplate(e, "jobStatusFull")))
 	})
 	return e
 }
@@ -197,7 +266,7 @@ func (e *JobExecutor) WithFifoOutput() *JobExecutor {
 // Display doneReport when all jobs are Done
 func (e *JobExecutor) WithOrderedOutput() *JobExecutor {
 	e.OnJobsDone(func(jobs JobList) {
-		fmt.Print(jobs.execTemplate(e.getTemplate("doneReport")))
+		fmt.Print(jobs.execTemplate(getExecutorTemplate(e, "doneReport")))
 	})
 	return e
 }
@@ -207,11 +276,11 @@ func (e *JobExecutor) WithOrderedOutput() *JobExecutor {
 // as it will potentially break progress output
 func (e *JobExecutor) WithOngoingStatusOutput() *JobExecutor {
 	e.OnJobsStart(func(jobs JobList) {
-		fmt.Print(jobs.execTemplate(e.getTemplate("startProgressReport")))
+		fmt.Print(jobs.execTemplate(getExecutorTemplate(e, "startProgressReport")))
 	})
 	printProgress := func(jobs JobList, jobId int) {
 		esc := fmt.Sprintf("\033[%dA", len(e.jobs)) // clean sequence
-		fmt.Print(esc + jobs.execTemplate(e.getTemplate("progressReport")))
+		fmt.Print(esc + jobs.execTemplate(getExecutorTemplate(e, "progressReport")))
 	}
 	e.OnJobDone(printProgress)
 	e.OnJobStart(printProgress)
@@ -242,6 +311,8 @@ func (e *JobExecutor) WithProgressBarOutput(length int, keepOnDone bool, colorEs
 	return e
 }
 
+//************************** Run jobs **************************//
+
 // Effectively execute jobs and return collected errors as JobsError
 func (e *JobExecutor) Execute() JobsError {
 	var errs = make([]error, e.Len())
@@ -259,16 +330,4 @@ func (e *JobExecutor) Execute() JobsError {
 		}
 	}
 	return res
-}
-
-// return defined template associated with this executor or default template if none
-func (e *JobExecutor) getTemplate(name string) *template.Template {
-	var tpl *template.Template
-	if e.template != nil {
-		tpl = e.template.Lookup(name)
-	}
-	if tpl == nil {
-		tpl = outputTemplate.Lookup(name)
-	}
-	return tpl
 }

@@ -24,3 +24,7 @@ func (es JobsError) String() string {
 	}
 	return strings.Join(strs, "\n")
 }
+
+func (es JobsError) Len() int {
+	return len(es)
+}
