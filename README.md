@@ -5,6 +5,7 @@ go module to assist in running jobs in multiple goroutines and print their outpu
 ## features:
 - Can set the max concurrent jobs with: SetMaxConcurrentJobs, default to runtime. GOMAXPROCS ()
 - Can run commands and "runnable" functions (they must return a string and an error)
+- **Can handle job dependencies** by running them in topological order
 - Can register handlers for the following events:
 	- OnJobsStart: called before any job start
 	- OnJobStart: called before each job start
@@ -64,9 +65,33 @@ func main() {
 		exec.Command("sleep", "5"),
 		exec.Command("sleep", "2"),
 	)
+	// there's also AddJob and AddJobs that are not chainable but that returns a job api instead
+	myJob := executor.AddJob(exec.Command("sleep", "1"))
+	jobs := executor.AddJobs(
+		exec.Command("sleep", "2"),
+		jobExecutor.NamedJob("MyNamedJob", longFunction) // you can wrap in a NamedJob structure to add job with a name
+	)
 
 	// execute them and get errors if any
 	jobErrors := executor.Execute()
+	if len(jobErrors) > 0 {
+		fmt.Fprintln(os.Stderr, jobErrors)
+	}
+}
+```
+#### Handling dependencies between jobs
+This is based on Directed Acyclic Graph, and using the khan algorythm to topologicaly sort the jobs.
+```go
+func main() {
+	executor := jobExecutor.NewExecutor()
+	jobs := executor.addJobs(
+		exec.Command("sleep", "1"),
+		exec.Command("exit", "1"),
+		exec.Command("ls", "-l"),
+	)
+	executor.AddDependencies(jobs[0], jobs[1]) // sleep will never run as it depends on a job that always fails
+	// execute them respecting dependencies
+	jobErrors := executor.DagExecute()
 	if len(jobErrors) > 0 {
 		fmt.Fprintln(os.Stderr, jobErrors)
 	}
