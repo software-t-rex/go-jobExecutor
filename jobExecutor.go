@@ -406,3 +406,32 @@ func (e *JobExecutor) DagExecute() JobsError {
 	}
 	return res
 }
+
+// return a graphviz dot representation of the execution graph you can render it
+// using graphviz or pasting output to https://dreampuf.github.io/GraphvizOnline/
+func (e *JobExecutor) GetDot() string {
+	out := []string{`digraph G{
+	graph [bgcolor="#121212" fontcolor="black"]
+	node [colorscheme="set312" style="filled,rounded" shape="box"]
+	edge [color="#f0f0f0"]`}
+	for _, j := range e.jobs {
+		out = append(out, fmt.Sprintf("\t%d [label=\"%s\" color=\"%d\"]", j.id, j.Name(), j.id%12+1))
+	}
+	for _, j := range e.jobs {
+		for _, dep := range j.DependsOn {
+			out = append(out, fmt.Sprintf("\t%d -> %d", j.id, dep.id))
+		}
+	}
+	// finally group all nodes without dependencies
+	noDepNodes := []string{}
+	for _, j := range e.jobs {
+		if len(j.DependsOn) == 0 {
+			noDepNodes = append(noDepNodes, fmt.Sprintf("%d", j.id))
+		}
+	}
+	if len(noDepNodes) > 1 {
+		out = append(out, fmt.Sprintf("\t{rank=same; %s}", strings.Join(noDepNodes, ";")))
+	}
+
+	return strings.Join(out, "\n") + "\n}"
+}

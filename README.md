@@ -179,3 +179,33 @@ Alternatively, you can pass a template bound to a specific executor like this:
 ```go
 executor := jobExecutor.NewExecutorWithTemplate(myTemplate)
 ```
+
+### Generate a graphviz dot textual representation of the job execution
+You can generate a graph representation of the jobs already added to the executor by calling the method GetDot
+```go
+fmt.println(executor.GetDot())
+// output from a test case
+digraph G{
+	graph [bgcolor="#121212" fontcolor="black"]
+	node [colorscheme="set312" style="filled,rounded" shape="box"]
+	edge [color="#f0f0f0"]
+	0 [label="fn 0" color="1"]
+	1 [label="fn 1" color="2"]
+	2 [label="fn 2" color="3"]
+	3 [label="fn 3" color="4"]
+	4 [label="cmd 4" color="5"]
+	5 [label="cmd 5" color="6"]
+	6 [label="cmd 6" color="7"]
+	7 [label="cmd 7" color="8"]
+	8 [label="cmd 8" color="9"]
+	0 -> 1
+	0 -> 5
+	2 -> 3
+	4 -> 7
+	6 -> 2
+	7 -> 8
+	7 -> 0
+	{rank=same; 1;3;5;8}
+}
+```
+you can see the result here [https://bit.ly/403iylC](https://bit.ly/403iylC)
