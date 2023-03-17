@@ -11,7 +11,7 @@ go module to assist in running jobs in multiple goroutines and print their outpu
 	- OnJobStart: called before each job start
 	- OnJobDone: called after each job terminated
 	- OnJobsDone: called after all jobs are terminated
-- Fluent interface, you can chain methods
+- Fluent interface: you can chain methods call
 - Can add jobs programmatically
 - Can display a progress report of ongoing jobs
 - Can display output using custom templates
@@ -80,7 +80,7 @@ func main() {
 }
 ```
 #### Handling dependencies between jobs
-This is based on Directed Acyclic Graph, and using the khan algorythm to topologicaly sort the jobs.
+This is based on Directed Acyclic Graph, and using the khan algorythm to topologically sort the jobs.
 ```go
 func main() {
 	executor := jobExecutor.NewExecutor()
