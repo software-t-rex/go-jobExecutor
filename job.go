@@ -48,6 +48,7 @@ type job struct {
 }
 
 // ************************** public Job API **************************//
+
 type Job struct {
 	job *job
 }
@@ -119,7 +120,13 @@ func (j *job) run(done func()) {
 		}
 	}
 	if j.Cmd != nil {
-		res, err := j.Cmd.CombinedOutput()
+		var res []byte
+		var err error
+		if j.Cmd.Stderr == nil && j.Cmd.Stdout == nil {
+			res, err = j.Cmd.CombinedOutput()
+		} else { // don't collect outputs if user already dealt with
+			err = j.Cmd.Run()
+		}
 		j.mutex.Lock()
 		j.Res = string(res)
 		j.Err = err
@@ -150,6 +157,11 @@ func (j *job) Name() string {
 		return runtime.FuncForPC(reflect.ValueOf(j.Fn).Pointer()).Name()
 	}
 	return "EmptyJob"
+}
+
+// this methods should not be called once the job executor is running as it is not thread safe
+func (j *job) SetDisplayName(name string) {
+	j.displayName = name
 }
 
 // Test if a job is in a given JobState
