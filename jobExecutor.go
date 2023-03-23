@@ -11,6 +11,7 @@ import (
 	_ "embed"
 	"fmt"
 	"math"
+	"os"
 	"os/exec"
 	"strings"
 	"sync/atomic"
@@ -268,6 +269,22 @@ func (e *JobExecutor) WithFifoOutput() *JobExecutor {
 func (e *JobExecutor) WithOrderedOutput() *JobExecutor {
 	e.OnJobsDone(func(jobs JobList) {
 		fmt.Print(jobs.execTemplate(getExecutorTemplate(e, "doneReport")))
+	})
+	return e
+}
+
+// Print stdout and stderr of command directly to stdout as they arrive
+// prefixing the ouput with the job name It overrides cmd.Stdin and cmd.Stdout
+// so it won't work well with other With*Output methods that rely on collecting
+// them to display them later (typically WithOrderedOutput will have nothing
+// to display)
+func (e *JobExecutor) WithInterleavedOutput() *JobExecutor {
+	e.OnJobsStart(func(jobs JobList) {
+		for _, job := range jobs {
+			pw := NewPrefixedWriter(os.Stdout, job.Name()+": ")
+			job.Cmd.Stdout = pw
+			job.Cmd.Stderr = pw
+		}
 	})
 	return e
 }
