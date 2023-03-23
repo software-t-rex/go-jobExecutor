@@ -411,7 +411,7 @@ func (e *JobExecutor) DagExecute() JobsError {
 // using graphviz or pasting output to https://dreampuf.github.io/GraphvizOnline/
 func (e *JobExecutor) GetDot() string {
 	out := []string{`digraph G{
-	graph [bgcolor="#121212" fontcolor="black"]
+	graph [bgcolor="#121212" fontcolor="black" rankdir="RL"]
 	node [colorscheme="set312" style="filled,rounded" shape="box"]
 	edge [color="#f0f0f0"]`}
 	for _, j := range e.jobs {
