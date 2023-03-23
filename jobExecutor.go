@@ -280,7 +280,7 @@ func (e *JobExecutor) WithOngoingStatusOutput() *JobExecutor {
 		fmt.Print(jobs.execTemplate(getExecutorTemplate(e, "startProgressReport")))
 	})
 	printProgress := func(jobs JobList, jobId int) {
-		esc := fmt.Sprintf("\033[%dA", len(e.jobs)) // clean sequence
+		esc := fmt.Sprintf("\033[%dA\033[J", len(jobs)) // clean sequence
 		fmt.Print(esc + jobs.execTemplate(getExecutorTemplate(e, "progressReport")))
 	}
 	e.OnJobDone(printProgress)
