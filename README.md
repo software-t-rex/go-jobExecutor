@@ -80,7 +80,7 @@ func main() {
 }
 ```
 #### Handling dependencies between jobs
-This is based on Directed Acyclic Graph, and using the khan algorythm to topologically sort the jobs.
+This is based on Directed Acyclic Graph, and using the khan algorithm to topologically sort the jobs.
 ```go
 func main() {
 	executor := jobExecutor.NewExecutor()
@@ -160,6 +160,7 @@ func main() {
 - WithFifoOutput: output res and errors as they arrive
 - WithStartOutput: output a line when launching a job
 - WithStartSummary: output a summary of jobs to do
+- WithInterleavedOutput: output lines as they arrive prefixed by job name
 
 ### Change output formats
 All output methods use a go template which you can override by calling the method
@@ -180,13 +181,24 @@ Alternatively, you can pass a template bound to a specific executor like this:
 executor := jobExecutor.NewExecutorWithTemplate(myTemplate)
 ```
 
+### A note about stdin and stdout
+The default behavior of jobExecutor is to run exec.Cmd using the CombinedOutput
+method. This allows to print grouped output for jobs as in most of with*Output
+methods.
+If you have set exec.Cmd.Stdout and/or Stderr, it will then rely on the exec.Cmd.Run
+method instead. It won't collect stderr or stdout for you anymore.
+Some output methods like the withInterleavedOutput use this internally.
+Most of the time this won't impact you as a user of this package, but in case
+you're diving in customizing a lot the way you handle the output it may
+be important to know how this work.
+
 ### Generate a graphviz dot textual representation of the job execution
 You can generate a graph representation of the jobs already added to the executor by calling the method GetDot
 ```go
 fmt.println(executor.GetDot())
 // output from a test case
 digraph G{
-	graph [bgcolor="#121212" fontcolor="black"]
+	graph [bgcolor="#121212" fontcolor="black" rankdir="RL"]
 	node [colorscheme="set312" style="filled,rounded" shape="box"]
 	edge [color="#f0f0f0"]
 	0 [label="fn 0" color="1"]
@@ -208,4 +220,10 @@ digraph G{
 	{rank=same; 1;3;5;8}
 }
 ```
-you can see the result here [https://bit.ly/403iylC](https://bit.ly/403iylC)
+you can see the result here [https://bit.ly/40wXkwD](https://bit.ly/40wXkwD)
+
+## Contributing
+Contributions are welcome, but please make small independent commits when you contribute, it makes the review process a lot easier for me.
+
+## Funding / Sponsorship
+If you like my work, and find it useful to you or your company, you can sponsors my work here: [become sponsors to the project](https://github.com/sponsors/malko).
