@@ -282,8 +282,23 @@ func (e *JobExecutor) WithInterleavedOutput() *JobExecutor {
 	e.OnJobsStart(func(jobs JobList) {
 		for _, job := range jobs {
 			pw := NewPrefixedWriter(os.Stdout, job.Name()+": ")
-			job.Cmd.Stdout = pw
-			job.Cmd.Stderr = pw
+			if job.Cmd != nil {
+				job.Cmd.Stdout = pw
+				job.Cmd.Stderr = pw
+			} else if job.Fn != nil {
+				fn := job.Fn
+				job.Fn = func() (string, error) {
+					res, err := fn()
+					fn = nil
+					if res != "" {
+						pw.Write([]byte(res))
+					}
+					if err != nil {
+						pw.Write([]byte(err.Error()))
+					}
+					return res, err
+				}
+			}
 		}
 	})
 	return e
