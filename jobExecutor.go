@@ -379,12 +379,12 @@ func (e *JobExecutor) IsAcyclic() bool {
 		return true
 	}
 	// init an adjacencyList to store edges between jobs
-	adjacencyList := make(map[int][]int, length)
+	// adjacencyList := make(map[int][]int, length)
 	// Count dependent on each job
 	dependentCount := make(map[int]int, length)
 	for _, job := range e.jobs {
 		for _, to := range job.DependsOn {
-			adjacencyList[job.id] = append(adjacencyList[job.id], to.id)
+			// adjacencyList[job.id] = append(adjacencyList[job.id], to.id)
 			dependentCount[to.id]++
 		}
 	}
