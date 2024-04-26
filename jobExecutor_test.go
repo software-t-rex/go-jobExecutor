@@ -11,6 +11,7 @@ import (
 	_ "embed"
 	"errors"
 	"os/exec"
+	"runtime"
 	"sync"
 	"testing"
 )
@@ -216,16 +217,31 @@ func TestJobExecutor_IsAcyclic(t *testing.T) {
 
 func TestJobExecutor_DagExecute(t *testing.T) {
 	e := NewExecutor()
-	jobs := []Job{
-		e.AddJob(NamedJob{"fn 0", TestRunnableSuccessFn}),                  // 0 ->  1, 5 / <- 7
-		e.AddJob(NamedJob{"fn 1", TestRunnableSuccessFn}),                  // 1 <- 0
-		e.AddJob(NamedJob{"fn 2", TestRunnableSuccessFn}),                  // 2 -> 3 / <- 6
-		e.AddJob(NamedJob{"fn 3", TestRunnableFailFn}),                     // 3 <- 2
-		e.AddJob(NamedJob{"cmd 4", exec.Command("bash", "-c", "sleep 1")}), // 4 -> 7
-		e.AddJob(NamedJob{"cmd 5", exec.Command("bash", "-c", "sleep 1")}), // 5 <- 0
-		e.AddJob(NamedJob{"cmd 6", exec.Command("bash", "-c", "sleep 1")}), // 6 -> 2
-		e.AddJob(NamedJob{"cmd 7", exec.Command("bash", "-c", "sleep 1")}), // 7 -> 8, 0 / <- 4
-		e.AddJob(NamedJob{"cmd 8", exec.Command("bash", "-c", "exit 1")}),  // 8 <- 7
+	var jobs []Job
+	if runtime.GOOS == "windows" {
+		jobs = []Job{
+			e.AddJob(NamedJob{"fn 0", TestRunnableSuccessFn}),                               // 0 ->  1, 5 / <- 7
+			e.AddJob(NamedJob{"fn 1", TestRunnableSuccessFn}),                               // 1 <- 0
+			e.AddJob(NamedJob{"fn 2", TestRunnableSuccessFn}),                               // 2 -> 3 / <- 6
+			e.AddJob(NamedJob{"fn 3", TestRunnableFailFn}),                                  // 3 <- 2
+			e.AddJob(NamedJob{"cmd 4", exec.Command("cmd", "/C", "start", "timeout", "1")}), // 4 -> 7
+			e.AddJob(NamedJob{"cmd 5", exec.Command("cmd", "/C", "start", "timeout", "1")}), // 5 <- 0
+			e.AddJob(NamedJob{"cmd 6", exec.Command("cmd", "/C", "start", "timeout", "1")}), // 6 -> 2
+			e.AddJob(NamedJob{"cmd 7", exec.Command("cmd", "/C", "start", "timeout", "1")}), // 7 -> 8, 0 / <- 4
+			e.AddJob(NamedJob{"cmd 8", exec.Command("bash", "-c", "exit 1")}),               // 8 <- 7 will exit if command not found that's ok for the test
+		}
+	} else {
+		jobs = []Job{
+			e.AddJob(NamedJob{"fn 0", TestRunnableSuccessFn}),                  // 0 ->  1, 5 / <- 7
+			e.AddJob(NamedJob{"fn 1", TestRunnableSuccessFn}),                  // 1 <- 0
+			e.AddJob(NamedJob{"fn 2", TestRunnableSuccessFn}),                  // 2 -> 3 / <- 6
+			e.AddJob(NamedJob{"fn 3", TestRunnableFailFn}),                     // 3 <- 2
+			e.AddJob(NamedJob{"cmd 4", exec.Command("bash", "-c", "sleep 1")}), // 4 -> 7
+			e.AddJob(NamedJob{"cmd 5", exec.Command("bash", "-c", "sleep 1")}), // 5 <- 0
+			e.AddJob(NamedJob{"cmd 6", exec.Command("bash", "-c", "sleep 1")}), // 6 -> 2
+			e.AddJob(NamedJob{"cmd 7", exec.Command("bash", "-c", "sleep 1")}), // 7 -> 8, 0 / <- 4
+			e.AddJob(NamedJob{"cmd 8", exec.Command("bash", "-c", "exit 1")}),  // 8 <- 7
+		}
 	}
 	// define dependencies
 	e.
