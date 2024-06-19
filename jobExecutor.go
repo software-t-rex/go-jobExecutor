@@ -93,6 +93,7 @@ func getPrintProgress(total int, length int, colorEscSeq string) func(done int32
 		rest := math.Mod(doneTotal, 8)
 		barStr := strings.Repeat("█", doneStartLength)
 		if rest > 0 {
+			// add the right part of the bar starting by a single char which represent 1/8 to 8/8 of a full block
 			barStr += string(rune(9616-rest)) + strings.Repeat(" ", length-1-doneStartLength)
 		} else {
 			barStr += strings.Repeat(" ", length-doneStartLength)
@@ -274,7 +275,7 @@ func (e *JobExecutor) WithOrderedOutput() *JobExecutor {
 }
 
 // Print stdout and stderr of command directly to stdout as they arrive
-// prefixing the ouput with the job name It overrides cmd.Stdin and cmd.Stdout
+// prefixing the output with the job name It overrides cmd.Stdin and cmd.Stdout
 // so it won't work well with other With*Output methods that rely on collecting
 // them to display them later (typically WithOrderedOutput will have nothing
 // to display)
@@ -305,7 +306,7 @@ func (e *JobExecutor) WithInterleavedOutput() *JobExecutor {
 }
 
 // Display a job status report updated each time a job start or end
-// be carefull when dealing with other handler that generate output
+// be careful when dealing with other handler that generate output
 // as it will potentially break progress output
 func (e *JobExecutor) WithOngoingStatusOutput() *JobExecutor {
 	e.OnJobsStart(func(jobs JobList) {
@@ -320,9 +321,11 @@ func (e *JobExecutor) WithOngoingStatusOutput() *JobExecutor {
 	return e
 }
 
-// - length is the number of characters used to print the progress bar
-// - keepOnDone determines if the progress bar should be kept on the screen when done or not
-// - colorEscSeq is an ANSII terminal escape sequence ie: "\033[32m"
+//   - length is the number of characters used to print the progress bar
+//   - keepOnDone determines if the progress bar should be kept on the screen when done or not
+//   - colorEscSeq is an ANSII terminal escape sequence ie: "\033[32;40m"
+//     you can set the background color for the empty part of the bar (black in the given example)
+//     and the foreground color for the filled part of the bar (green in the given example)
 func (e *JobExecutor) WithProgressBarOutput(length int, keepOnDone bool, colorEscSeq string) *JobExecutor {
 	var doneCount atomic.Int32
 	var printProgress func(done int32)
